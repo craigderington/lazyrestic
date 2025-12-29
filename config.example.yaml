@@ -1,0 +1,28 @@
+# LazyRestic Configuration Example
+# Copy this file to ~/.config/lazyrestic/config.yaml and edit it
+
+repositories:
+  # Local repository example
+  - name: local-backup
+    path: /path/to/local/restic/repo
+    password_command: pass show restic/local-backup  # Using 'pass' password manager
+
+  # Or use a password file
+  # - name: home-backup
+  #   path: /mnt/backup/restic
+  #   password_file: ~/.restic-password
+
+  # S3 repository example
+  # - name: s3-backup
+  #   path: s3:s3.amazonaws.com/my-bucket/restic
+  #   password_command: pass show restic/s3-backup
+
+  # SFTP repository example
+  # - name: remote-backup
+  #   path: sftp:user@host:/path/to/repo
+  #   password_file: ~/.restic-password
+
+  # Test repository (for development)
+  - name: test-repo
+    path: /tmp/restic-test
+    password: testpassword  # Not recommended for production!
