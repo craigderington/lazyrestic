@@ -2,27 +2,33 @@
 # Copy this file to ~/.config/lazyrestic/config.yaml and edit it
 
 repositories:
-  # Local repository example
+  # Local repository example using password file (recommended)
+  # Password files must have 0400 or 0600 permissions for security
   - name: local-backup
     path: /path/to/local/restic/repo
-    password_command: pass show restic/local-backup  # Using 'pass' password manager
+    password_file: ~/.config/lazyrestic/passwords/local-backup.txt
 
-  # Or use a password file
-  # - name: home-backup
-  #   path: /mnt/backup/restic
-  #   password_file: ~/.restic-password
+  # Using a password manager command (for advanced users)
+  - name: home-backup
+    path: /mnt/backup/restic
+    password_command: pass show restic/home-backup  # Using 'pass' password manager
 
   # S3 repository example
   # - name: s3-backup
   #   path: s3:s3.amazonaws.com/my-bucket/restic
-  #   password_command: pass show restic/s3-backup
+  #   password_file: ~/.config/lazyrestic/passwords/s3-backup.txt
 
   # SFTP repository example
   # - name: remote-backup
   #   path: sftp:user@host:/path/to/repo
-  #   password_file: ~/.restic-password
+  #   password_file: ~/.config/lazyrestic/passwords/remote-backup.txt
 
-  # Test repository (for development)
-  - name: test-repo
-    path: /tmp/restic-test
-    password: testpassword  # Not recommended for production!
+# Security Notes:
+# 1. NEVER use plain-text passwords in this config file
+# 2. Use password_file with secure permissions (0400 or 0600)
+# 3. Or use password_command with a password manager like 'pass', '1password', etc.
+#
+# To create a secure password file:
+#   mkdir -p ~/.config/lazyrestic/passwords
+#   echo 'YOUR_SECURE_PASSWORD' > ~/.config/lazyrestic/passwords/my-repo.txt
+#   chmod 400 ~/.config/lazyrestic/passwords/my-repo.txt

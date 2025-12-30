@@ -13,7 +13,6 @@ func TestNewClient(t *testing.T) {
 	config := types.RepositoryConfig{
 		Name:            "test-repo",
 		Path:            "/tmp/test",
-		Password:        "testpass",
 		PasswordFile:    "/path/to/file",
 		PasswordCommand: "pass show test",
 	}
@@ -22,9 +21,6 @@ func TestNewClient(t *testing.T) {
 
 	if client.config.Path != config.Path {
 		t.Errorf("repoPath = %v, want %v", client.config.Path, config.Path)
-	}
-	if client.config.Password != config.Password {
-		t.Errorf("password = %v, want %v", client.config.Password, config.Password)
 	}
 	if client.config.PasswordFile != config.PasswordFile {
 		t.Errorf("passwordFile = %v, want %v", client.config.PasswordFile, config.PasswordFile)
@@ -40,19 +36,6 @@ func TestClient_buildEnv(t *testing.T) {
 		client   *Client
 		contains []string
 	}{
-		{
-			name: "Password only",
-			client: &Client{
-				config: types.RepositoryConfig{
-					Path:     "/tmp/repo",
-					Password: "secret",
-				},
-			},
-			contains: []string{
-				"RESTIC_REPOSITORY=/tmp/repo",
-				"RESTIC_PASSWORD=secret",
-			},
-		},
 		{
 			name: "Password file",
 			client: &Client{
@@ -174,9 +157,9 @@ func TestListSnapshots_Integration(t *testing.T) {
 	}
 
 	config := types.RepositoryConfig{
-		Name:     "test-integration",
-		Path:     testRepo,
-		Password: testPass,
+		Name:         "test-integration",
+		Path:         testRepo,
+		PasswordFile: "/tmp/restic-test-password.txt",
 	}
 
 	client := NewClient(config)
@@ -292,9 +275,9 @@ func TestCheckRepository_Integration(t *testing.T) {
 	}
 
 	config := types.RepositoryConfig{
-		Name:     "test-check",
-		Path:     testRepo,
-		Password: testPass,
+		Name:         "test-check",
+		Path:         testRepo,
+		PasswordFile: "/tmp/restic-test-password.txt",
 	}
 
 	client := NewClient(config)
@@ -317,7 +300,7 @@ func TestCheckRepository_InvalidRepo(t *testing.T) {
 	config := types.RepositoryConfig{
 		Name:     "invalid",
 		Path:     "/nonexistent/repo",
-		Password: "wrongpass",
+		PasswordFile: "/tmp/wrongpass",
 	}
 
 	client := NewClient(config)
@@ -333,7 +316,6 @@ func BenchmarkBuildEnv(b *testing.B) {
 	client := &Client{
 		config: types.RepositoryConfig{
 			Path:            "/tmp/repo",
-			Password:        "secret",
 			PasswordFile:    "/file",
 			PasswordCommand: "command",
 		},
@@ -349,7 +331,7 @@ func BenchmarkNewClient(b *testing.B) {
 	config := types.RepositoryConfig{
 		Name:     "bench",
 		Path:     "/tmp/bench",
-		Password: "password",
+		PasswordFile: "/tmp/password",
 	}
 
 	b.ResetTimer()

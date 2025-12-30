@@ -112,7 +112,8 @@ type RepositoryConfig struct {
 	Path            string `yaml:"path"`
 	PasswordCommand string `yaml:"password_command,omitempty"`
 	PasswordFile    string `yaml:"password_file,omitempty"`
-	Password        string `yaml:"password,omitempty"` // Not recommended, but supported
+	// Note: Plain-text passwords are no longer supported for security reasons
+	// Use password_file or password_command instead
 }
 
 // Panel represents which panel is currently focused

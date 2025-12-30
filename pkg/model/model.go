@@ -1,6 +1,8 @@
 package model
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -940,7 +942,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					passwordMethod := m.repoForm.GetPasswordMethod()
 					password := m.repoForm.GetPassword()
 
-
 					if name == "" || path == "" {
 						m.opsPanel.Error("Name and path are required")
 						return m, nil
@@ -953,18 +954,52 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 
 					switch passwordMethod {
-					case "direct":
-						if password == "" {
-							m.opsPanel.Error("Password is required for direct method")
-							return m, nil
-						}
-						repoConfig.Password = password
 					case "file":
-						if password == "" {
-							m.opsPanel.Error("Password file path is required")
-							return m, nil
+						var passwordFilePath string
+
+						// Auto-generate password file if requested
+						if m.repoForm.ShouldAutoGeneratePasswordFile() {
+							// Generate password file path
+							home, err := os.UserHomeDir()
+							if err != nil {
+								m.opsPanel.Error(fmt.Sprintf("Failed to get home directory: %v", err))
+								return m, nil
+							}
+
+							passwordDir := filepath.Join(home, ".config", "lazyrestic", "passwords")
+							passwordFilePath = filepath.Join(passwordDir, name+".txt")
+
+							// Create password directory if it doesn't exist
+							if err := os.MkdirAll(passwordDir, 0700); err != nil {
+								m.opsPanel.Error(fmt.Sprintf("Failed to create password directory: %v", err))
+								return m, nil
+							}
+
+							// Generate secure random password
+							generatedPassword, err := generateSecurePassword(32)
+							if err != nil {
+								m.opsPanel.Error(fmt.Sprintf("Failed to generate password: %v", err))
+								return m, nil
+							}
+
+							// Write password file with secure permissions (0400)
+							if err := os.WriteFile(passwordFilePath, []byte(generatedPassword), 0400); err != nil {
+								m.opsPanel.Error(fmt.Sprintf("Failed to write password file: %v", err))
+								return m, nil
+							}
+
+							m.opsPanel.Success(fmt.Sprintf("Created password file: %s", passwordFilePath))
+						} else {
+							// Use manually specified password file path
+							if password == "" {
+								m.opsPanel.Error("Password file path is required")
+								return m, nil
+							}
+							passwordFilePath = password
 						}
-						repoConfig.PasswordFile = password
+
+						repoConfig.PasswordFile = passwordFilePath
+
 					case "command":
 						if password == "" {
 							m.opsPanel.Error("Password command is required")
@@ -1581,4 +1616,24 @@ func (m Model) renderFileBrowser() string {
 		lipgloss.Center,
 		content,
 	)
+}
+
+// generateSecurePassword generates a cryptographically secure random password
+func generateSecurePassword(length int) (string, error) {
+	// Generate random bytes
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+
+	// Encode to base64 for a readable password
+	// Base64 encoding makes it URL-safe and easier to handle
+	password := base64.URLEncoding.EncodeToString(bytes)
+
+	// Trim to requested length
+	if len(password) > length {
+		password = password[:length]
+	}
+
+	return password, nil
 }

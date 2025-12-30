@@ -14,7 +14,7 @@ func TestClient_Integration_ListSnapshots(t *testing.T) {
 
 	config := types.RepositoryConfig{
 		Path:     "/tmp/test-repo",
-		Password: "testpassword",
+		PasswordFile: "/tmp/testpass",
 	}
 
 	client := NewClient(config)
@@ -46,7 +46,7 @@ func TestClient_Integration_GetRepositoryInfo(t *testing.T) {
 
 	config := types.RepositoryConfig{
 		Path:     "/tmp/test-repo",
-		Password: "testpassword",
+		PasswordFile: "/tmp/testpass",
 	}
 
 	client := NewClient(config)

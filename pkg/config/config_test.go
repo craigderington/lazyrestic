@@ -52,8 +52,8 @@ func TestLoad_ValidConfig(t *testing.T) {
 	if repo1.Path != "/tmp/test" {
 		t.Errorf("First repo path = %v, want /tmp/test", repo1.Path)
 	}
-	if repo1.Password != "testpass" {
-		t.Errorf("First repo password = %v, want testpass", repo1.Password)
+	if repo1.PasswordFile != "testpass" {
+		t.Errorf("First repo password = %v, want testpass", repo1.PasswordFile)
 	}
 
 	// Check second repository
@@ -116,7 +116,7 @@ func TestSave_ValidConfig(t *testing.T) {
 			{
 				Name:     "test-repo",
 				Path:     "/tmp/test",
-				Password: "secret",
+				PasswordFile: "/tmp/testfile",
 			},
 		},
 	}
@@ -285,7 +285,7 @@ func TestRoundTrip_SaveAndLoad(t *testing.T) {
 			{
 				Name:     "repo3",
 				Path:     "/path/three",
-				Password: "direct-password",
+				PasswordFile: "/tmp/testfile",
 			},
 		},
 	}
@@ -317,8 +317,8 @@ func TestRoundTrip_SaveAndLoad(t *testing.T) {
 		if orig.Path != load.Path {
 			t.Errorf("Repo %d: Path = %v, want %v", i, load.Path, orig.Path)
 		}
-		if orig.Password != load.Password {
-			t.Errorf("Repo %d: Password = %v, want %v", i, load.Password, orig.Password)
+		if orig.PasswordFile != load.PasswordFile {
+			t.Errorf("Repo %d: Password = %v, want %v", i, load.PasswordFile, orig.PasswordFile)
 		}
 		if orig.PasswordFile != load.PasswordFile {
 			t.Errorf("Repo %d: PasswordFile = %v, want %v", i, load.PasswordFile, orig.PasswordFile)

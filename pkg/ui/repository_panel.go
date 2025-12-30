@@ -14,6 +14,7 @@ type RepositoryPanel struct {
 	selected     int
 	width        int
 	height       int
+	scrollOffset int // Viewport scroll offset
 }
 
 // NewRepositoryPanel creates a new repository panel
@@ -30,6 +31,8 @@ func (p *RepositoryPanel) SetRepositories(repos []types.Repository) {
 	if p.selected >= len(repos) && len(repos) > 0 {
 		p.selected = len(repos) - 1
 	}
+	// Reset scroll when repos change
+	p.scrollOffset = 0
 }
 
 // SetSize updates the panel dimensions
@@ -42,6 +45,10 @@ func (p *RepositoryPanel) SetSize(width, height int) {
 func (p *RepositoryPanel) MoveUp() {
 	if p.selected > 0 {
 		p.selected--
+		// Adjust scroll offset to keep selection visible
+		if p.selected < p.scrollOffset {
+			p.scrollOffset = p.selected
+		}
 	}
 }
 
@@ -49,6 +56,15 @@ func (p *RepositoryPanel) MoveUp() {
 func (p *RepositoryPanel) MoveDown() {
 	if p.selected < len(p.repositories)-1 {
 		p.selected++
+		// Adjust scroll offset to keep selection visible
+		// Each repo takes ~3 lines (name + path + spacing)
+		visibleRepos := (p.height - 6) / 3 // Rough estimate
+		if visibleRepos < 1 {
+			visibleRepos = 1
+		}
+		if p.selected >= p.scrollOffset+visibleRepos {
+			p.scrollOffset = p.selected - visibleRepos + 1
+		}
 	}
 }
 
@@ -78,7 +94,31 @@ func (p *RepositoryPanel) Render(active bool) string {
 			Foreground(lipgloss.Color("241")).
 			Render("Add repositories to ~/.config/lazyrestic/config.yaml"))
 	} else {
-		for i, repo := range p.repositories {
+		// Calculate visible area for viewport scrolling
+		// Each repo takes ~3 lines (name + path + spacing)
+		visibleRepos := (p.height - 6) / 3
+		if visibleRepos < 1 {
+			visibleRepos = 1
+		}
+
+		totalRepos := len(p.repositories)
+
+		// Show scroll indicator at top
+		if p.scrollOffset > 0 {
+			scrollTopStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
+			b.WriteString(scrollTopStyle.Render("  ▲ more above...\n"))
+		}
+
+		// Calculate viewport bounds
+		startIdx := p.scrollOffset
+		endIdx := p.scrollOffset + visibleRepos
+		if endIdx > totalRepos {
+			endIdx = totalRepos
+		}
+
+		// Render only visible repositories
+		for i := startIdx; i < endIdx; i++ {
+			repo := p.repositories[i]
 			var line string
 			if i == p.selected && active {
 				line = ListItemSelectedStyle.Render(fmt.Sprintf("▶ %s", repo.Name))
@@ -105,6 +145,12 @@ func (p *RepositoryPanel) Render(active bool) string {
 			}
 
 			b.WriteString(pathStyle.Render(displayPath) + "\n")
+		}
+
+		// Show scroll indicator at bottom
+		if endIdx < totalRepos {
+			scrollBottomStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
+			b.WriteString(scrollBottomStyle.Render("  ▼ more below...\n"))
 		}
 	}
 

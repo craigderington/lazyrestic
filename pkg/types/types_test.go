@@ -129,7 +129,6 @@ func TestRepositoryConfig_PasswordOptions(t *testing.T) {
 			config: RepositoryConfig{
 				Name:     "repo1",
 				Path:     "/tmp/repo1",
-				Password: "secret123",
 			},
 			hasAuth: true,
 		},
@@ -163,8 +162,7 @@ func TestRepositoryConfig_PasswordOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hasAuth := tt.config.Password != "" ||
-				tt.config.PasswordFile != "" ||
+			hasAuth := tt.config.PasswordFile != "" ||
 				tt.config.PasswordCommand != ""
 
 			if hasAuth != tt.hasAuth {
@@ -180,7 +178,7 @@ func TestResticConfig_MultipleRepositories(t *testing.T) {
 			{
 				Name:     "repo1",
 				Path:     "/tmp/repo1",
-				Password: "pass1",
+				PasswordFile: "/tmp/testfile",
 			},
 			{
 				Name:         "repo2",

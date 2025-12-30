@@ -70,8 +70,10 @@ Example minimal configuration:
 repositories:
   - name: test-repo
     path: /tmp/restic-test
-    password: testpassword
+    password_file: ~/.config/lazyrestic/passwords/test-repo.txt
 ```
+
+**Note:** Plain-text passwords are no longer supported for security reasons. See the [Password Security](#password-security) section below.
 
 ### 3. Run LazyRestic
 
@@ -207,6 +209,62 @@ These statistics refresh automatically when you press `r` or when you create a n
 
 Configuration file: `~/.config/lazyrestic/config.yaml`
 
+### Password Security
+
+LazyRestic enforces secure password management and **does not support plain-text passwords** in the configuration file. You must use one of these two secure methods:
+
+#### Method 1: Password File (Recommended)
+
+Store your password in a separate file with restrictive permissions:
+
+```yaml
+repositories:
+  - name: my-backup
+    path: /path/to/repo
+    password_file: ~/.config/lazyrestic/passwords/my-backup.txt
+```
+
+**Creating a password file manually:**
+```bash
+# Create password directory
+mkdir -p ~/.config/lazyrestic/passwords
+
+# Create password file (replace YOUR_PASSWORD with your actual password)
+echo 'YOUR_PASSWORD' > ~/.config/lazyrestic/passwords/my-backup.txt
+
+# Set secure permissions (read-only for owner)
+chmod 400 ~/.config/lazyrestic/passwords/my-backup.txt
+```
+
+**Or use LazyRestic's built-in auto-generation:**
+When creating a new repository in the TUI, LazyRestic can automatically:
+- Generate a cryptographically secure random password
+- Create the password file with proper permissions (0400)
+- Store it at `~/.config/lazyrestic/passwords/<repo-name>.txt`
+
+#### Method 2: Password Command (For Password Managers)
+
+Use a password manager like `pass`, `1password`, or `lastpass`:
+
+```yaml
+repositories:
+  - name: my-backup
+    path: /path/to/repo
+    password_command: pass show restic/my-backup
+```
+
+**Example with different password managers:**
+```yaml
+# Using 'pass' (password-store)
+password_command: pass show restic/my-backup
+
+# Using 1Password CLI
+password_command: op read "op://vault/restic-backup/password"
+
+# Using macOS Keychain
+password_command: security find-generic-password -a restic -s my-backup -w
+```
+
 ### Repository Configuration Options
 
 ```yaml
@@ -214,11 +272,16 @@ repositories:
   - name: my-backup           # Display name
     path: /path/to/repo       # Repository path (local or remote)
 
-    # Password options (choose one):
-    password: secret123                    # Direct password (not recommended)
-    password_file: ~/.restic-password     # File containing password
-    password_command: pass show restic/my # Command that outputs password
+    # Password options (choose ONE):
+    password_file: ~/.config/lazyrestic/passwords/my-backup.txt  # Recommended
+    password_command: pass show restic/my-backup                  # For password managers
 ```
+
+**Important Security Notes:**
+- Config file must have `0600` permissions
+- Password files must have `0400` or `0600` permissions
+- Never commit password files to version control
+- Add `~/.config/lazyrestic/passwords/` to your `.gitignore`
 
 ### Supported Repository Types
 

@@ -31,9 +31,7 @@ func (c *Client) buildEnv() []string {
 		fmt.Sprintf("RESTIC_REPOSITORY=%s", c.config.Path),
 	}
 
-	if c.config.Password != "" {
-		env = append(env, fmt.Sprintf("RESTIC_PASSWORD=%s", c.config.Password))
-	}
+	// Only password_file and password_command are supported (no plain-text passwords)
 	if c.config.PasswordFile != "" {
 		env = append(env, fmt.Sprintf("RESTIC_PASSWORD_FILE=%s", c.config.PasswordFile))
 	}

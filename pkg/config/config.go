@@ -37,7 +37,40 @@ func Load(path string) (*types.ResticConfig, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// Parse YAML
+	// Parse YAML into a temporary structure to check for deprecated fields
+	var rawConfig map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse config YAML: %w", err)
+	}
+
+	// Check for deprecated plain-text passwords
+	if repos, ok := rawConfig["repositories"].([]interface{}); ok {
+		for i, repo := range repos {
+			if repoMap, ok := repo.(map[interface{}]interface{}); ok {
+				if _, hasPassword := repoMap["password"]; hasPassword {
+					repoName := "unknown"
+					if name, ok := repoMap["name"].(string); ok {
+						repoName = name
+					}
+					return nil, fmt.Errorf("repository %d (%s) uses deprecated 'password' field\n\n"+
+						"Plain-text passwords are no longer supported for security.\n"+
+						"Please migrate to one of these secure methods:\n\n"+
+						"1. Password file (recommended):\n"+
+						"   password_file: /path/to/password-file  # File must have 0400 or 0600 permissions\n\n"+
+						"2. Password command (for password managers):\n"+
+						"   password_command: pass show restic/%s\n\n"+
+						"To migrate your existing password:\n"+
+						"  mkdir -p ~/.config/lazyrestic/passwords\n"+
+						"  echo 'YOUR_PASSWORD' > ~/.config/lazyrestic/passwords/%s.txt\n"+
+						"  chmod 400 ~/.config/lazyrestic/passwords/%s.txt\n"+
+						"  # Then update config to use: password_file: ~/.config/lazyrestic/passwords/%s.txt",
+						i, repoName, repoName, repoName, repoName, repoName)
+				}
+			}
+		}
+	}
+
+	// Parse YAML into proper structure
 	var config types.ResticConfig
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config YAML: %w", err)
@@ -82,9 +115,6 @@ func validateConfigFilePermissions(path string) error {
 // validateRepositoryConfig validates a single repository configuration
 func validateRepositoryConfig(repo *types.RepositoryConfig, index int) error {
 	passwordMethods := 0
-	if repo.Password != "" {
-		passwordMethods++
-	}
 	if repo.PasswordFile != "" {
 		passwordMethods++
 	}
@@ -93,17 +123,11 @@ func validateRepositoryConfig(repo *types.RepositoryConfig, index int) error {
 	}
 
 	if passwordMethods == 0 {
-		return fmt.Errorf("no password method specified (password, password_file, or password_command required)")
+		return fmt.Errorf("no password method specified (password_file or password_command required)")
 	}
 
 	if passwordMethods > 1 {
-		return fmt.Errorf("multiple password methods specified, use only one of: password, password_file, or password_command")
-	}
-
-	// Validate direct password (discourage but allow)
-	if repo.Password != "" {
-		// Warn about insecure practice, but don't fail
-		// We'll log this elsewhere
+		return fmt.Errorf("multiple password methods specified, use only one of: password_file or password_command")
 	}
 
 	// Validate password file
@@ -227,14 +251,14 @@ func CreateExample(path string) error {
 	example := &types.ResticConfig{
 		Repositories: []types.RepositoryConfig{
 			{
-				Name:            "local-backup",
-				Path:            "/path/to/local/repo",
-				PasswordCommand: "pass show restic/local-backup",
+				Name:         "local-backup",
+				Path:         "/path/to/local/repo",
+				PasswordFile: "~/.config/lazyrestic/passwords/local-backup.txt",
 			},
 			{
-				Name:         "remote-backup",
-				Path:         "s3:s3.amazonaws.com/my-bucket",
-				PasswordFile: "/home/user/.restic-password",
+				Name:            "home-backup",
+				Path:            "/mnt/backup/restic",
+				PasswordCommand: "pass show restic/home-backup",
 			},
 		},
 	}

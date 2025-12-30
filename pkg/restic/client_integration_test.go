@@ -30,7 +30,7 @@ func TestBackupWithChannel(t *testing.T) {
 
 	config := types.RepositoryConfig{
 		Path:     testRepo,
-		Password: os.Getenv("RESTIC_PASSWORD"),
+		PasswordFile: "/tmp/restic-test-password.txt",
 	}
 
 	client := NewClient(config)

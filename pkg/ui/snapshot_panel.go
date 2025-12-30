@@ -42,6 +42,9 @@ func (p *SnapshotPanel) SetSnapshots(snapshots []types.Snapshot) {
 	if p.selected >= listLen && listLen > 0 {
 		p.selected = listLen - 1
 	}
+
+	// Reset scroll offset
+	p.scrollOffset = 0
 }
 
 // ApplyFilter applies the current filter settings to the snapshot list
@@ -49,6 +52,7 @@ func (p *SnapshotPanel) ApplyFilter() {
 	// If no filter is active, show all snapshots
 	if !p.filterActive || (p.filterText == "" && p.filterTag == "" && p.filterHost == "") {
 		p.filteredSnapshots = p.snapshots
+		p.scrollOffset = 0
 		return
 	}
 
@@ -60,9 +64,10 @@ func (p *SnapshotPanel) ApplyFilter() {
 		}
 	}
 
-	// Reset selection if current selection is out of bounds
+	// Reset selection and scroll if current selection is out of bounds
 	if p.selected >= len(p.filteredSnapshots) && len(p.filteredSnapshots) > 0 {
 		p.selected = 0
+		p.scrollOffset = 0
 	}
 }
 
@@ -177,6 +182,10 @@ func (p *SnapshotPanel) GetHeight() int {
 func (p *SnapshotPanel) MoveUp() {
 	if p.selected > 0 {
 		p.selected--
+		// Adjust scroll offset to keep selection visible
+		if p.selected < p.scrollOffset {
+			p.scrollOffset = p.selected
+		}
 	}
 }
 
@@ -185,6 +194,15 @@ func (p *SnapshotPanel) MoveDown() {
 	listLen := len(p.filteredSnapshots)
 	if p.selected < listLen-1 {
 		p.selected++
+		// Adjust scroll offset to keep selection visible
+		// Calculate visible area (approximate - account for header, borders, padding)
+		visibleLines := p.height - 6 // Rough estimate: height minus borders/title/padding
+		if visibleLines < 1 {
+			visibleLines = 1
+		}
+		if p.selected >= p.scrollOffset+visibleLines {
+			p.scrollOffset = p.selected - visibleLines + 1
+		}
 	}
 }
 
@@ -248,7 +266,30 @@ func (p *SnapshotPanel) Render(active bool) string {
 				len(p.filteredSnapshots), len(p.snapshots))))
 		}
 
-		for i, snapshot := range p.filteredSnapshots {
+		// Calculate visible area for viewport scrolling
+		visibleLines := p.height - 6 // Account for borders, title, padding
+		if visibleLines < 1 {
+			visibleLines = 1
+		}
+
+		totalSnapshots := len(p.filteredSnapshots)
+
+		// Show scroll indicators
+		if p.scrollOffset > 0 {
+			scrollTopStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
+			b.WriteString(scrollTopStyle.Render("  ▲ more above...\n"))
+		}
+
+		// Calculate viewport bounds
+		startIdx := p.scrollOffset
+		endIdx := p.scrollOffset + visibleLines
+		if endIdx > totalSnapshots {
+			endIdx = totalSnapshots
+		}
+
+		// Render only visible snapshots
+		for i := startIdx; i < endIdx; i++ {
+			snapshot := p.filteredSnapshots[i]
 			var line string
 
 			// Truncate ID for display
@@ -272,6 +313,12 @@ func (p *SnapshotPanel) Render(active bool) string {
 			line += timeStyle.Render(fmt.Sprintf(" - %s", timeStr))
 
 			b.WriteString(line + "\n")
+		}
+
+		// Show scroll indicator for more content below
+		if endIdx < totalSnapshots {
+			scrollBottomStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
+			b.WriteString(scrollBottomStyle.Render("  ▼ more below...\n"))
 		}
 	}
 

@@ -17,20 +17,22 @@ const (
 	FieldPath
 	FieldPasswordMethod
 	FieldPassword
+	FieldGeneratePasswordFile
 	FieldInitialize
 	FieldSubmit
 )
 
 // RepoForm represents a form for creating a new repository
 type RepoForm struct {
-	nameInput      textinput.Model
-	pathInput      textinput.Model
-	passwordInput  textinput.Model
-	focusedField   RepoFormField
-	passwordMethod string // "direct", "file", "command"
-	initializeRepo bool   // Whether to initialize the repository
-	width          int
-	height         int
+	nameInput               textinput.Model
+	pathInput               textinput.Model
+	passwordInput           textinput.Model
+	focusedField            RepoFormField
+	passwordMethod          string // "file" or "command"
+	autoGeneratePasswordFile bool   // Whether to auto-generate password file path
+	initializeRepo          bool   // Whether to initialize the repository
+	width                   int
+	height                  int
 }
 
 // NewRepoForm creates a new repository creation form
@@ -45,17 +47,17 @@ func NewRepoForm() *RepoForm {
 	pathInput.CharLimit = 200
 
 	passwordInput := textinput.New()
-	passwordInput.Placeholder = "password or /path/to/file or command"
-	passwordInput.EchoMode = textinput.EchoPassword
-	passwordInput.EchoCharacter = '•'
+	passwordInput.Placeholder = "Will be auto-generated if using file method"
+	passwordInput.EchoMode = textinput.EchoNormal
 	passwordInput.CharLimit = 200
 
 	return &RepoForm{
-		nameInput:      nameInput,
-		pathInput:      pathInput,
-		passwordInput:  passwordInput,
-		focusedField:   FieldName,
-		passwordMethod: "direct",
+		nameInput:               nameInput,
+		pathInput:               pathInput,
+		passwordInput:           passwordInput,
+		focusedField:            FieldName,
+		passwordMethod:          "file", // Default to secure file method
+		autoGeneratePasswordFile: true,   // Auto-generate by default
 	}
 }
 
@@ -89,6 +91,16 @@ func (f *RepoForm) Update(msg tea.Msg) tea.Cmd {
 			f.passwordMethod = f.nextPasswordMethod()
 			// Clear password input when changing methods
 			if oldMethod != f.passwordMethod {
+				f.passwordInput.SetValue("")
+				// Update placeholder based on method
+				f.updatePasswordPlaceholder()
+			}
+		}
+	case FieldGeneratePasswordFile:
+		if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == " " {
+			f.autoGeneratePasswordFile = !f.autoGeneratePasswordFile
+			// Clear manual input if switching to auto-generate
+			if f.autoGeneratePasswordFile {
 				f.passwordInput.SetValue("")
 			}
 		}
@@ -144,22 +156,19 @@ func (f *RepoForm) FocusCurrent() {
 	}
 }
 
-// CyclePasswordMethod cycles through password methods
-func (f *RepoForm) CyclePasswordMethod() {
+// updatePasswordPlaceholder updates the placeholder text based on method
+func (f *RepoForm) updatePasswordPlaceholder() {
 	switch f.passwordMethod {
-	case "direct":
-		f.passwordMethod = "file"
-		f.passwordInput.Placeholder = "/path/to/password-file"
-		f.passwordInput.EchoMode = textinput.EchoNormal
 	case "file":
-		f.passwordMethod = "command"
-		f.passwordInput.Placeholder = "pass show restic/my-repo"
+		if f.autoGeneratePasswordFile {
+			f.passwordInput.Placeholder = "Will be auto-generated: ~/.config/lazyrestic/passwords/<name>.txt"
+		} else {
+			f.passwordInput.Placeholder = "/path/to/password-file"
+		}
 		f.passwordInput.EchoMode = textinput.EchoNormal
 	case "command":
-		f.passwordMethod = "direct"
-		f.passwordInput.Placeholder = "direct password"
-		f.passwordInput.EchoMode = textinput.EchoPassword
-		f.passwordInput.EchoCharacter = '•'
+		f.passwordInput.Placeholder = "pass show restic/my-repo"
+		f.passwordInput.EchoMode = textinput.EchoNormal
 	}
 }
 
@@ -200,21 +209,35 @@ func (f *RepoForm) SetName(name string) {
 
 // IsValid checks if the form is valid
 func (f *RepoForm) IsValid() bool {
-	return f.GetName() != "" && f.GetPath() != "" && f.GetPassword() != ""
+	// Name and path are always required
+	if f.GetName() == "" || f.GetPath() == "" {
+		return false
+	}
+
+	// For file method with auto-generation, password can be empty
+	if f.passwordMethod == "file" && f.autoGeneratePasswordFile {
+		return true
+	}
+
+	// Otherwise password/command is required
+	return f.GetPassword() != ""
 }
 
 // nextPasswordMethod cycles to the next password method
 func (f *RepoForm) nextPasswordMethod() string {
 	switch f.passwordMethod {
-	case "direct":
-		return "file"
 	case "file":
 		return "command"
 	case "command":
-		return "direct"
+		return "file"
 	default:
-		return "direct"
+		return "file"
 	}
+}
+
+// ShouldAutoGeneratePasswordFile returns whether to auto-generate password file
+func (f *RepoForm) ShouldAutoGeneratePasswordFile() bool {
+	return f.passwordMethod == "file" && f.autoGeneratePasswordFile
 }
 
 // GetFocusedField returns the currently focused field
@@ -278,7 +301,7 @@ func (f *RepoForm) Render() string {
 	}
 	b.WriteString(methodLabel + "\n")
 
-	methods := []string{"direct", "file", "command"}
+	methods := []string{"file", "command"}
 	var methodsDisplay []string
 	for _, m := range methods {
 		if m == f.passwordMethod {
@@ -293,13 +316,38 @@ func (f *RepoForm) Render() string {
 	}
 	b.WriteString("\n")
 
-	// Password field
+	// Auto-generate password file option (only for file method)
+	if f.passwordMethod == "file" {
+		genLabel := "  Auto-generate secure password file"
+		if f.autoGeneratePasswordFile {
+			genLabel = "  [✓] Auto-generate secure password file"
+		} else {
+			genLabel = "  [ ] Auto-generate secure password file"
+		}
+		if f.focusedField == FieldGeneratePasswordFile {
+			genLabel = focusedStyle.Render("▶ " + genLabel)
+		}
+		b.WriteString(genLabel + "\n")
+		if f.focusedField == FieldGeneratePasswordFile {
+			b.WriteString(helpStyle.Render("  Press space to toggle") + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	// Password field (or command field)
 	passwordLabel := labelStyle.Render(f.getPasswordLabel())
 	if f.focusedField == FieldPassword {
 		passwordLabel = focusedStyle.Render("▶ " + f.getPasswordLabel())
 	}
 	b.WriteString(passwordLabel + "\n")
-	b.WriteString(f.passwordInput.View() + "\n\n")
+
+	// Show different help text for auto-generated files
+	if f.passwordMethod == "file" && f.autoGeneratePasswordFile {
+		b.WriteString(helpStyle.Render("  (will be created at: ~/.config/lazyrestic/passwords/"+f.GetName()+".txt)") + "\n")
+	} else {
+		b.WriteString(f.passwordInput.View() + "\n")
+	}
+	b.WriteString("\n")
 
 	// Initialize option
 	initLabel := "  Initialize repository after creation"
@@ -348,10 +396,13 @@ func (f *RepoForm) Render() string {
 func (f *RepoForm) getPasswordLabel() string {
 	switch f.passwordMethod {
 	case "file":
+		if f.autoGeneratePasswordFile {
+			return "Password File (auto):"
+		}
 		return "Password File Path:"
 	case "command":
 		return "Password Command:"
 	default:
-		return "Password:"
+		return "Password File Path:"
 	}
 }
