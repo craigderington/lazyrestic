@@ -122,6 +122,14 @@ func (f *RepoForm) NextField() {
 		f.focusedField = FieldName
 	}
 
+	// Skip FieldGeneratePasswordFile if password method is "command"
+	if f.focusedField == FieldGeneratePasswordFile && f.passwordMethod == "command" {
+		f.focusedField++
+		if f.focusedField > FieldSubmit {
+			f.focusedField = FieldName
+		}
+	}
+
 	f.FocusCurrent()
 }
 
@@ -132,6 +140,14 @@ func (f *RepoForm) PrevField() {
 	f.focusedField--
 	if f.focusedField < FieldName {
 		f.focusedField = FieldSubmit
+	}
+
+	// Skip FieldGeneratePasswordFile if password method is "command"
+	if f.focusedField == FieldGeneratePasswordFile && f.passwordMethod == "command" {
+		f.focusedField--
+		if f.focusedField < FieldName {
+			f.focusedField = FieldSubmit
+		}
 	}
 
 	f.FocusCurrent()
