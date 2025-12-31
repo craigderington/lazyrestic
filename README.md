@@ -1,7 +1,7 @@
 # LazyRestic
 
 A beautiful Terminal User Interface (TUI) for managing [restic](https://restic.net/) backup repositories, inspired by lazydocker and lazygit.
-
+![lazyrestric](https://github.com/craigderington/lazyrestic/blob/master/assets/screenshot-2025-12-29_13-52-13.png)
 ## Features
 
 - **Visual Repository Management**: Browse and manage multiple restic repositories
